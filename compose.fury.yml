@@ -9,7 +9,7 @@
 #   /volume1/foundry_devlab/secrets/env/health-auto-export.env (0600); on rotation, update that file AND re-push env to
 #   the Portainer stack. Container bind-mounts to /volume1 are fine (resolved by the host docker daemon).
 #
-# Public ingest: health.nextlevelfoundry.com → hae-server :2050 via Cloudflare Tunnel (api-key = WRITE_TOKEN).
+# Public ingest: health.nextlevelfoundry.com -> hae-server :2053 via Cloudflare Tunnel (api-key = WRITE_TOKEN).
 # Grafana: INTERNAL-ONLY (no public route). Mongo: LAN :2052 for habitarcade-poc consumer.
 # Synology: Grafana NAMED volume (UID-472); json-file logging+tag for Coulson Promtail.
 
@@ -51,7 +51,7 @@ services:
       READ_TOKEN: ${READ_TOKEN}
       WRITE_TOKEN: ${WRITE_TOKEN}
     ports:
-      - "2050:3001"
+      - "2053:3001"
     depends_on:
       hae-mongo: { condition: service_healthy }
     networks: [hae_network]
