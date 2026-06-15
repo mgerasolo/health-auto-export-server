@@ -1,0 +1,22 @@
+name: Sync fork with upstream
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: nlf-deploy, fetch-depth: 0 }
+      - name: Merge upstream into nlf-deploy (no force; our added files persist)
+        run: |
+          git config user.name "fork-sync-bot"
+          git config user.email "fork-sync-bot@users.noreply.github.com"
+          git remote add upstream https://github.com/HealthyApps/health-auto-export-server.git
+          git fetch upstream
+          git merge upstream/main --no-edit -m "chore: sync upstream" || {
+            echo "Conflict: upstream touched a file we also changed. Failing for manual review."; exit 1; }
+          git push origin HEAD:nlf-deploy

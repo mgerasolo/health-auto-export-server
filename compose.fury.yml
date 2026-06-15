@@ -1,0 +1,68 @@
+# Health Auto Export — Apple Health "data lake" (https://github.com/HealthyApps/health-auto-export-server)
+# Fork: mgerasolo/health-auto-export-server. main = pure upstream mirror; THIS branch (nlf-deploy) adds only
+#       our deploy files. Auto-sync robot (.github/workflows/upstream-sync.yml) merges upstream/main -> nlf-deploy daily.
+# Deploy: Fury (10.0.0.20) via Portainer → Git stack `health-auto-export`, branch nlf-deploy, compose path compose.fury.yml
+# Tracking: GH mgerasolo/nlf-infrastructure #834
+# Public ingest: health.nextlevelfoundry.com → hae-server :2050 via Cloudflare Tunnel (api-key gated)
+# Grafana: INTERNAL-ONLY. Mongo: LAN :2052 for habitarcade-poc consumer.
+#
+# Synology conventions: bind mounts /volume1/docker/health-auto-export/*; Grafana NAMED volume (UID-472);
+#   json-file logging+tag for Coulson Promtail; secrets via env_file /volume1/foundry_devlab/secrets/env/health-auto-export.env (0600)
+
+services:
+  hae-mongo:
+    image: mongo:latest
+    container_name: hae-mongo
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    env_file: /volume1/foundry_devlab/secrets/env/health-auto-export.env
+    volumes:
+      - /volume1/docker/health-auto-export/mongo:/data/db
+    ports:
+      - "2052:27017"
+    networks: [hae_network]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    logging: { driver: json-file, options: { tag: "{{.Name}}" } }
+
+  hae-server:
+    build: { context: ./server, dockerfile: Dockerfile }
+    container_name: hae-server
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    env_file: /volume1/foundry_devlab/secrets/env/health-auto-export.env
+    environment:
+      NODE_ENV: production
+      MONGO_HOST: hae-mongo
+      MONGO_PORT: "27017"
+    ports:
+      - "2050:3001"
+    depends_on:
+      hae-mongo: { condition: service_healthy }
+    networks: [hae_network]
+    logging: { driver: json-file, options: { tag: "{{.Name}}" } }
+
+  hae-grafana:
+    image: grafana/grafana-oss:latest
+    container_name: hae-grafana
+    restart: unless-stopped
+    env_file: /volume1/foundry_devlab/secrets/env/health-auto-export.env
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "2051:3000"
+    depends_on: [hae-mongo]
+    networks: [hae_network]
+    volumes:
+      - hae-grafana-data:/var/lib/grafana
+    logging: { driver: json-file, options: { tag: "{{.Name}}" } }
+
+networks:
+  hae_network: { driver: bridge }
+
+volumes:
+  hae-grafana-data:
