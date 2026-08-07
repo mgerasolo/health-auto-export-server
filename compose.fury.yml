@@ -20,10 +20,14 @@ services:
     restart: unless-stopped
     security_opt: [no-new-privileges:true]
     # WiredTiger cache defaults to 50% of host RAM (15.5GB on Fury) — OOM crash-looped WT recovery
-    # after the 2026-08-07 unclean reboot (nlf-infrastructure #1010). 2GB is ample for this dataset;
-    # mem_limit is the kernel-level backstop (mongod also derives cache from the cgroup limit).
+    # after the 2026-08-07 unclean reboot (nlf-infrastructure #1010). 2GB is ample for a ~510MB
+    # dataset; the deploy limit below is the kernel-level backstop (mongod also derives its cache
+    # from the cgroup limit, so the cap holds even if the flag is ever dropped).
     command: ["--wiredTigerCacheSizeGB", "2"]
-    mem_limit: 4g
+    deploy:
+      resources:
+        limits:
+          memory: 4G
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
@@ -42,6 +46,10 @@ services:
     logging: { driver: json-file, options: { tag: "{{.Name}}" } }
 
   hae-server:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     build: { context: ./server, dockerfile: Dockerfile }
     container_name: hae-server
     restart: unless-stopped
@@ -63,6 +71,10 @@ services:
     logging: { driver: json-file, options: { tag: "{{.Name}}" } }
 
   hae-grafana:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     image: grafana/grafana-oss:latest
     container_name: hae-grafana
     restart: unless-stopped
