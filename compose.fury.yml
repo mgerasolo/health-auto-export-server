@@ -19,6 +19,11 @@ services:
     container_name: hae-mongo
     restart: unless-stopped
     security_opt: [no-new-privileges:true]
+    # WiredTiger cache defaults to 50% of host RAM (15.5GB on Fury) — OOM crash-looped WT recovery
+    # after the 2026-08-07 unclean reboot (nlf-infrastructure #1010). 2GB is ample for this dataset;
+    # mem_limit is the kernel-level backstop (mongod also derives cache from the cgroup limit).
+    command: ["--wiredTigerCacheSizeGB", "2"]
+    mem_limit: 4g
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
